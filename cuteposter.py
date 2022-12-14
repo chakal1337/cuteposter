@@ -19,10 +19,11 @@ threads = 10
 tor = 0
 max_depth = 1
 max_url = 25
+max_forms = 5
 comments = ["%%LINK%%"]
 random_dict = []
 usernames = []
-debug = 1
+debug = 0
 
 parser = argparse.ArgumentParser(
  prog = "CutePoster",
@@ -35,13 +36,21 @@ parser.add_argument('-c', '--comments-file')
 parser.add_argument('-u', '--username-file')
 parser.add_argument('-t', '--threads')
 parser.add_argument('-m', '--max-url-crawl')
+parser.add_argument('-f', '--max-forms')
 parser.add_argument('-z', '--tor', action="store_true")
 parser.add_argument('-d', '--depth')
+parser.add_argument('-v', '--verbose', action="store_true")
 
 args = parser.parse_args()
 
 if args.tor:
  tor = 1
+
+if args.verbose:
+ debug = 1
+
+if args.max_forms:
+ max_forms = int(args.max_forms)
 
 if args.max_url_crawl:
  max_url = int(args.max_url_crawl)
@@ -123,6 +132,7 @@ def parse_def(str):
  return spin_bot(" ".join(str))
 
 def get_payload(inp_name):
+ inp_name = inp_name.lower()
  username_defs = ["user","name","nick"]
  url_defs = ["url","link","web"]
  email_defs = ["mail","addr"]
@@ -136,7 +146,7 @@ def get_payload(inp_name):
    return parse_def(random.choice(links)) 
  for emm in email_defs:
   if emm in inp_name:
-   return parse_def(get_uname())
+   return parse_def(get_uname()+"@gmail.com")
  for ffm in full_defs:
   if ffm in inp_name:
    return parse_def(random.choice(comments))
@@ -166,7 +176,10 @@ def post(url, url_original, s, soup, headers, proxies):
  global actions_posted
  forms = soup.find_all("form")
  random.shuffle(forms)
+ formcount = 0
  for form in forms:
+  if formcount >= max_forms: break
+  formcount += 1
   form_action = form.get("action")
   if not form_action: continue
   if form_action.startswith("http"):
