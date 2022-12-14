@@ -188,6 +188,7 @@ def post(url, url_original, s, soup, headers, proxies):
    form_action = urljoin(url, form_action)
   with tlock:
    if form_action in actions_posted: continue
+   else: actions_posted.append(form_action)
   send_form_payload(form_action, form, s, headers, proxies)
 
 def scrape(url, url_original, depth=1):
