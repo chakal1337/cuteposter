@@ -168,9 +168,9 @@ def send_form_payload(form_action, form, s, headers, proxies):
    else:
     payload = get_payload(inp_name)
     data[inp_name] = payload
- r = s.post(url=form_action, data=data, headers=headers, proxies=proxies, timeout=5)
- print("Posted to: {}".format(form_action))
- if debug == 1: print(json.dumps(data))
+ with s.post(url=form_action, data=data, headers=headers, proxies=proxies, timeout=5, stream=True) as r:
+  print("Posted to: {}".format(form_action))
+  if debug == 1: print(json.dumps(data))
 
 def post(url, url_original, s, soup, headers, proxies):
  global actions_posted
@@ -202,25 +202,25 @@ def scrape(url, url_original, depth=1):
    "User-Agent":"Mozilla/5.0 (X11; Linux x86_64; rv:107.0) Gecko/20100101 Firefox/107.0",
   }
   s = requests.Session()
-  r = s.get(url=url, headers=headers, timeout=5, proxies=proxies)
-  soup = BeautifulSoup(r.text, "html.parser")
-  if "<form" in r.text: post(url, url_original, s, soup, headers, proxies) 
-  lnkpool = soup.find_all("a")
-  random.shuffle(lnkpool)
-  for a_lnk in lnkpool:
-   link = a_lnk.get("href")
-   if not link: continue
-   if link.startswith("http"):
-    if not url_original in link: continue
-   link = urljoin(url, link)
-   with tlock:
-    if link in urls_crawled: continue
-    else: urls_crawled.append(link)
-   if depth < max_depth:
-    if debug == 1: print(link)
-    scrape(link, url_original, depth+1)
+  with s.get(url=url, headers=headers, timeout=5, proxies=proxies, stream=True) as r:
+   soup = BeautifulSoup(r.text, "html.parser")
+   if "<form" in r.text: post(url, url_original, s, soup, headers, proxies) 
+   lnkpool = soup.find_all("a")
+   random.shuffle(lnkpool)
+   for a_lnk in lnkpool:
+    link = a_lnk.get("href")
+    if not link: continue
+    if link.startswith("http"):
+     if not url_original in link: continue
+    link = urljoin(url, link)
+    with tlock:
+     if link in urls_crawled: continue
+     else: urls_crawled.append(link)
+    if depth < max_depth:
+     if debug == 1: print(link)
+     scrape(link, url_original, depth+1)
  except Exception as error:
-  if debug == 1: print(error)
+  if debug == 1: print(error) 
 
 def _start():
  global keywords
