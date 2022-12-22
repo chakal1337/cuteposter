@@ -48,6 +48,9 @@ args = parser.parse_args()
 if args.tor:
  tor = 1
 
+if args.threads:
+ threads = int(args.threads)
+
 if args.max_resp_sz:
  max_resp_sz = int(args.max_resp_sz)
 
