@@ -208,6 +208,7 @@ def getreqsafe(s, url, proxies, headers):
    rchnksz += 1024
    if rchnksz >= max_resp_sz:
     break
+  r.close()
   return data
 
 def scrape(url, url_original, depth=1):
@@ -225,6 +226,7 @@ def scrape(url, url_original, depth=1):
   if r == "": return
   soup = BeautifulSoup(r, "html.parser")
   if "<form" in r: post(url, url_original, s, soup, headers, proxies) 
+  del soup
   lnkpool = soup.find_all("a")
   random.shuffle(lnkpool)
   for a_lnk in lnkpool:
