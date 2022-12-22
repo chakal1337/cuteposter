@@ -13,14 +13,14 @@ import json
 
 tlock = threading.Lock()
 
-actions_posted = []
-urls_crawled = []
-threads = 10
+actions_posted = {}
+urls_crawled = {}
+threads = 25
 tor = 0
 max_depth = 1
-max_url = 25
+max_url = 30
 max_resp_sz = 1000000
-max_forms = 5
+max_forms = 10
 comments = ["%%LINK%%"]
 random_dict = []
 usernames = []
@@ -195,8 +195,8 @@ def post(url, url_original, s, soup, headers, proxies):
   else:
    form_action = urljoin(url, form_action)
   with tlock:
-   if form_action in actions_posted: continue
-   else: actions_posted.append(form_action)
+   if form_action in actions_posted.keys(): continue
+   else: actions_posted[form_action] = True
   send_form_payload(form_action, form, s, headers, proxies)
 
 def getreqsafe(s, url, proxies, headers):
@@ -226,7 +226,6 @@ def scrape(url, url_original, depth=1):
   if r == "": return
   soup = BeautifulSoup(r, "html.parser")
   if "<form" in r: post(url, url_original, s, soup, headers, proxies) 
-  del soup
   lnkpool = soup.find_all("a")
   random.shuffle(lnkpool)
   for a_lnk in lnkpool:
@@ -236,11 +235,13 @@ def scrape(url, url_original, depth=1):
     if not url_original in link: continue
    link = urljoin(url, link)
    with tlock:
-    if link in urls_crawled: continue
-    else: urls_crawled.append(link)
+    if link in urls_crawled.keys(): continue
+    else: urls_crawled[link] = True
    if depth < max_depth:
     if debug == 1: print(link)
     scrape(link, url_original, depth+1)
+  del soup
+  del r
  except Exception as error:
   if debug == 1: print(error) 
 
