@@ -19,6 +19,7 @@ threads = 10
 tor = 0
 max_depth = 1
 max_url = 25
+max_resp_sz = 1000000
 max_forms = 5
 comments = ["%%LINK%%"]
 random_dict = []
@@ -36,6 +37,7 @@ parser.add_argument('-c', '--comments-file')
 parser.add_argument('-u', '--username-file')
 parser.add_argument('-t', '--threads')
 parser.add_argument('-m', '--max-url-crawl')
+parser.add_argument('-s', '--max-resp-sz')
 parser.add_argument('-f', '--max-forms')
 parser.add_argument('-z', '--tor', action="store_true")
 parser.add_argument('-d', '--depth')
@@ -45,6 +47,9 @@ args = parser.parse_args()
 
 if args.tor:
  tor = 1
+
+if args.max_resp_sz:
+ max_resp_sz = int(args.max_resp_sz)
 
 if args.verbose:
  debug = 1
@@ -152,7 +157,7 @@ def get_payload(inp_name):
    return parse_def(random.choice(comments))
  for phm in phone_defs:
   if phm in inp_name:
-   return "".join(random.choice("0123456789"))
+   return "".join(random.choice("0123456789") for _ in range(9))
  return parse_def(random.choice(comments))
 
 def send_form_payload(form_action, form, s, headers, proxies):
@@ -191,6 +196,17 @@ def post(url, url_original, s, soup, headers, proxies):
    else: actions_posted.append(form_action)
   send_form_payload(form_action, form, s, headers, proxies)
 
+def getreqsafe(s, url, proxies, headers):
+ rchnksz = 0
+ data = ""
+ with s.get(url=url, headers=headers, timeout=5, proxies=proxies, stream=True) as r:
+  for chunk in r.iter_content(chunk_size=1024):
+   data += chunk.decode()
+   rchnksz += 1024
+   if rchnksz >= max_resp_sz:
+    break
+  return data
+
 def scrape(url, url_original, depth=1):
  global urls_crawled
  try:
@@ -202,23 +218,24 @@ def scrape(url, url_original, depth=1):
    "User-Agent":"Mozilla/5.0 (X11; Linux x86_64; rv:107.0) Gecko/20100101 Firefox/107.0",
   }
   s = requests.Session()
-  with s.get(url=url, headers=headers, timeout=5, proxies=proxies, stream=True) as r:
-   soup = BeautifulSoup(r.text, "html.parser")
-   if "<form" in r.text: post(url, url_original, s, soup, headers, proxies) 
-   lnkpool = soup.find_all("a")
-   random.shuffle(lnkpool)
-   for a_lnk in lnkpool:
-    link = a_lnk.get("href")
-    if not link: continue
-    if link.startswith("http"):
-     if not url_original in link: continue
-    link = urljoin(url, link)
-    with tlock:
-     if link in urls_crawled: continue
-     else: urls_crawled.append(link)
-    if depth < max_depth:
-     if debug == 1: print(link)
-     scrape(link, url_original, depth+1)
+  r = getreqsafe(s, url, proxies, headers)
+  if r == "": return
+  soup = BeautifulSoup(r, "html.parser")
+  if "<form" in r: post(url, url_original, s, soup, headers, proxies) 
+  lnkpool = soup.find_all("a")
+  random.shuffle(lnkpool)
+  for a_lnk in lnkpool:
+   link = a_lnk.get("href")
+   if not link: continue
+   if link.startswith("http"):
+    if not url_original in link: continue
+   link = urljoin(url, link)
+   with tlock:
+    if link in urls_crawled: continue
+    else: urls_crawled.append(link)
+   if depth < max_depth:
+    if debug == 1: print(link)
+    scrape(link, url_original, depth+1)
  except Exception as error:
   if debug == 1: print(error) 
 
